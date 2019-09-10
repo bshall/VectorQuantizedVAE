@@ -96,7 +96,7 @@ def train_fn(args):
             average_vq_loss += (vq_loss.item() - average_vq_loss) / i
             average_elbo += (elbo.item() - average_elbo) / i
             average_bpd += (bpd.item() - average_bpd) / i
-            average_perplexity += (perplexity.item() - perplexity) / i
+            average_perplexity += (perplexity.item() - average_perplexity) / i
 
         writer.add_scalar("logp/train", average_logp, epoch)
         writer.add_scalar("vqloss/train", average_vq_loss, epoch)
@@ -122,7 +122,7 @@ def train_fn(args):
             average_vq_loss += (vq_loss.item() - average_vq_loss) / i
             average_elbo += (elbo.item() - average_elbo) / i
             average_bpd += (bpd.item() - average_bpd) / i
-            average_perplexity += (perplexity.item() - perplexity) / i
+            average_perplexity += (perplexity.item() - average_perplexity) / i
 
         writer.add_scalar("logp/test", average_logp, global_step)
         writer.add_scalar("vqloss/test", average_vq_loss, global_step)
