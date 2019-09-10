@@ -100,6 +100,7 @@ def train_fn(args):
 
         writer.add_scalar("logp/train", average_logp, epoch)
         writer.add_scalar("vqloss/train", average_vq_loss, epoch)
+        writer.add_scalar("kl/train", KL, epoch)
         writer.add_scalar("elbo/train", average_elbo, epoch)
         writer.add_scalar("bpd/train", average_bpd, epoch)
         writer.add_scalar("perplexity/train", average_perplexity, epoch)
@@ -125,6 +126,7 @@ def train_fn(args):
 
         writer.add_scalar("logp/test", average_logp, global_step)
         writer.add_scalar("vqloss/test", average_vq_loss, global_step)
+        writer.add_scalar("kl/test", KL, epoch)
         writer.add_scalar("elbo/test", average_elbo, global_step)
         writer.add_scalar("bpd/test", average_bpd, global_step)
         writer.add_scalar("perplexity/test", average_perplexity, global_step)
