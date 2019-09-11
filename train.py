@@ -124,15 +124,15 @@ def train_fn(args):
             average_bpd += (bpd.item() - average_bpd) / i
             average_perplexity += (perplexity.item() - average_perplexity) / i
 
-        writer.add_scalar("logp/test", average_logp, global_step)
-        writer.add_scalar("vqloss/test", average_vq_loss, global_step)
+        writer.add_scalar("logp/test", average_logp, epoch)
+        writer.add_scalar("vqloss/test", average_vq_loss, epoch)
         writer.add_scalar("kl/test", KL, epoch)
-        writer.add_scalar("elbo/test", average_elbo, global_step)
-        writer.add_scalar("bpd/test", average_bpd, global_step)
-        writer.add_scalar("perplexity/test", average_perplexity, global_step)
+        writer.add_scalar("elbo/test", average_elbo, epoch)
+        writer.add_scalar("bpd/test", average_bpd, epoch)
+        writer.add_scalar("perplexity/test", average_perplexity, epoch)
 
         samples = torch.argmax(dist.logits, dim=-1)
-        grid = utils.make_grid(samples)
+        grid = utils.make_grid(samples.float() / 255)
         writer.add_image("reconstructions", grid, epoch)
 
         print("epoch:{}, logp:{:.3E}, vq:{:.3E}, elbo:{:.3f}, bpd:{:.3f}, perplexity:{:.3f}"
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--channels", type=int, default=256, help="Number of channels in conv layers.")
     parser.add_argument("--latent-dim", type=int, default=8, help="Dimension of categorical latents.")
     parser.add_argument("--num-embeddings", type=int, default=128, help="Number of codebook embeddings size.")
-    parser.add_argument("--embedding-dim", type=int, default=128, help="Dimension of codebook embeddings.")
+    parser.add_argument("--embedding-dim", type=int, default=32, help="Dimension of codebook embeddings.")
     parser.add_argument("--learning-rate", type=float, default=5e-4, help="Learning rate.")
     parser.add_argument("--batch-size", type=int, default=128, help="Batch size.")
     parser.add_argument("--num-training-steps", type=int, default=250000, help="Number of training steps.")
