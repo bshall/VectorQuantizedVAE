@@ -105,6 +105,7 @@ def train_fn(args):
         writer.add_scalar("bpd/train", average_bpd, epoch)
         writer.add_scalar("perplexity/train", average_perplexity, epoch)
 
+        model.eval()
         average_logp = average_vq_loss = average_elbo = average_bpd = average_perplexity = 0
         for i, (images, _) in enumerate(test_dataloader, 1):
             images = images.to(device)
