@@ -32,7 +32,7 @@ def train_fn(args):
 
     log_dir = "runs/C_{}_N_{}_M_{}_D_{}".format(args.channels, args.latent_dim,
                                                 args.num_embeddings, args.embedding_dim)
-    writer = SummaryWriter(log_dir=log_dir)
+    writer = SummaryWriter(log_dir="test")
 
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
@@ -67,19 +67,19 @@ def train_fn(args):
     start_epoch = global_step // len(training_dataloader) + 1
 
     N = 3 * 32 * 32
-    KL = args.latent_dim * 8 * 8 * np.log(args.num_embeddings)
+    # KL = args.latent_dim * 8 * 8 * np.log(args.num_embeddings)
 
     for epoch in range(start_epoch, num_epochs + 1):
         model.train()
-        average_logp = average_vq_loss = average_elbo = average_bpd = average_perplexity = 0
+        average_logp = average_KL = average_elbo = average_bpd = average_perplexity = 0
         for i, (images, _) in enumerate(tqdm(training_dataloader), 1):
             images = images.to(device)
 
-            dist, vq_loss, perplexity = model(images)
+            dist, KL, perplexity = model(images)
             targets = (images + 0.5) * 255
             targets = targets.long()
             logp = dist.log_prob(targets).sum((1, 2, 3)).mean()
-            loss = - logp / N + vq_loss
+            loss = (KL - logp) / N
             elbo = (KL - logp) / N
             bpd = elbo / np.log(2)
 
@@ -93,25 +93,24 @@ def train_fn(args):
                 save_checkpoint(model, optimizer, global_step, args.checkpoint_dir)
 
             average_logp += (logp.item() - average_logp) / i
-            average_vq_loss += (vq_loss.item() - average_vq_loss) / i
+            average_KL += (KL.item() - average_KL) / i
             average_elbo += (elbo.item() - average_elbo) / i
             average_bpd += (bpd.item() - average_bpd) / i
             average_perplexity += (perplexity.item() - average_perplexity) / i
 
         writer.add_scalar("logp/train", average_logp, epoch)
-        writer.add_scalar("vqloss/train", average_vq_loss, epoch)
-        writer.add_scalar("kl/train", KL, epoch)
+        writer.add_scalar("kl/train", average_KL, epoch)
         writer.add_scalar("elbo/train", average_elbo, epoch)
         writer.add_scalar("bpd/train", average_bpd, epoch)
         writer.add_scalar("perplexity/train", average_perplexity, epoch)
 
         model.eval()
-        average_logp = average_vq_loss = average_elbo = average_bpd = average_perplexity = 0
+        average_logp = average_KL = average_elbo = average_bpd = average_perplexity = 0
         for i, (images, _) in enumerate(test_dataloader, 1):
             images = images.to(device)
 
             with torch.no_grad():
-                dist, vq_loss, perplexity = model(images)
+                dist, KL, perplexity = model(images)
 
             targets = (images + 0.5) * 255
             targets = targets.long()
@@ -120,14 +119,13 @@ def train_fn(args):
             bpd = elbo / np.log(2)
 
             average_logp += (logp.item() - average_logp) / i
-            average_vq_loss += (vq_loss.item() - average_vq_loss) / i
+            average_KL += (KL.item() - average_KL) / i
             average_elbo += (elbo.item() - average_elbo) / i
             average_bpd += (bpd.item() - average_bpd) / i
             average_perplexity += (perplexity.item() - average_perplexity) / i
 
         writer.add_scalar("logp/test", average_logp, epoch)
-        writer.add_scalar("vqloss/test", average_vq_loss, epoch)
-        writer.add_scalar("kl/test", KL, epoch)
+        writer.add_scalar("kl/test", average_KL, epoch)
         writer.add_scalar("elbo/test", average_elbo, epoch)
         writer.add_scalar("bpd/test", average_bpd, epoch)
         writer.add_scalar("perplexity/test", average_perplexity, epoch)
@@ -136,8 +134,8 @@ def train_fn(args):
         grid = utils.make_grid(samples.float() / 255)
         writer.add_image("reconstructions", grid, epoch)
 
-        print("epoch:{}, logp:{:.3E}, vq:{:.3E}, elbo:{:.3f}, bpd:{:.3f}, perplexity:{:.3f}"
-              .format(epoch, average_logp, average_vq_loss, average_elbo, average_bpd, average_perplexity))
+        print("epoch:{}, logp:{:.3E}, KL:{:.3E}, elbo:{:.3f}, bpd:{:.3f}, perplexity:{:.3f}"
+              .format(epoch, average_logp, average_KL, average_elbo, average_bpd, average_perplexity))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Categorical
+from torch.distributions import Categorical, RelaxedOneHotCategorical
+import math
 
 
 class VQEmbeddingEMA(nn.Module):
@@ -57,6 +58,43 @@ class VQEmbeddingEMA(nn.Module):
         return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), loss, perplexity.sum()
 
 
+class VQEmbeddingGSSoft(nn.Module):
+    def __init__(self, latent_dim, num_embeddings, embedding_dim):
+        super(VQEmbeddingGSSoft, self).__init__()
+
+        self.embedding = nn.Parameter(torch.Tensor(latent_dim, num_embeddings, embedding_dim))
+        nn.init.uniform_(self.embedding, -1/num_embeddings, 1/num_embeddings)
+
+    def forward(self, x):
+        B, C, H, W = x.size()
+        N, M, D = self.embedding.size()
+        assert C == N * D
+
+        x = x.view(B, N, D, H, W).permute(1, 0, 3, 4, 2)
+        x_flat = x.reshape(N, -1, D)
+
+        distances = torch.baddbmm(torch.sum(self.embedding ** 2, dim=2).unsqueeze(1) +
+                                  torch.sum(x_flat ** 2, dim=2, keepdim=True),
+                                  x_flat, self.embedding.transpose(1, 2),
+                                  alpha=-2.0, beta=1.0)
+        distances = distances.view(N, B, H, W, M)
+
+        dist = RelaxedOneHotCategorical(0.5, logits=-distances)
+        samples = dist.rsample().view(N, -1, M)
+
+        quantized = torch.bmm(samples, self.embedding)
+        quantized = quantized.view_as(x)
+
+        KL = dist.probs * (dist.logits + math.log(M))
+        KL[(dist.probs == 0).expand_as(KL)] = 0
+        KL = KL.sum(dim=(0, 2, 3, 4)).mean()
+
+        avg_probs = torch.mean(samples, dim=1)
+        perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1))
+
+        return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), KL, perplexity.sum()
+
+
 class Residual(nn.Module):
     def __init__(self, channels):
         super(Residual, self).__init__()
@@ -87,7 +125,8 @@ class VQVAE(nn.Module):
             nn.Conv2d(channels, latent_dim * embedding_dim, 1)
         )
 
-        self.codebook = VQEmbeddingEMA(latent_dim, num_embeddings, embedding_dim)
+        # self.codebook = VQEmbeddingEMA(latent_dim, num_embeddings, embedding_dim)
+        self.codebook = VQEmbeddingGSSoft(latent_dim, num_embeddings, embedding_dim)
 
         self.decoder = nn.Sequential(
             nn.Conv2d(latent_dim * embedding_dim, channels, 1, bias=False),
@@ -105,9 +144,9 @@ class VQVAE(nn.Module):
 
     def forward(self, x):
         x = self.encoder(x)
-        x, loss, perplexity = self.codebook(x)
+        x, KL, perplexity = self.codebook(x)
         x = self.decoder(x)
         B, _, H, W = x.size()
         x = x.view(B, 3, 256, H, W).permute(0, 1, 3, 4, 2)
         dist = Categorical(logits=x)
-        return dist, loss, perplexity
+        return dist, KL, perplexity
