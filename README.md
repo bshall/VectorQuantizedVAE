@@ -13,7 +13,7 @@ To train the `GS-Soft` model use `--model=GSSOFT`.
     <img src="assets/reconstructions.png?raw=true" alt="VQVAE Reconstructions">
 </p>
 
-For the `VQVAE` model gets ~4.82 bpd while the `GS-soft` model gets ~4.6 bpd.
+The `VQVAE` model gets ~4.82 bpd while the `GS-soft` model gets ~4.6 bpd.
 
 # Analysis of the Codebooks 
 
