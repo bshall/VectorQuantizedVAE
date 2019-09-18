@@ -13,11 +13,11 @@ To train the `GS-Soft` model use `--model=GSSOFT`.
     <img src="assets/reconstructions.png?raw=true" alt="VQVAE Reconstructions">
 </p>
 
-For the `VQVAE` model gets ~ while the `GS-soft` model gets ~.
+For the `VQVAE` model gets ~4.82 bpd while the `GS-soft` model gets ~4.6 bpd.
 
 # Analysis of the Codebooks 
 
-As demonstrated in the paper, the codebook matrices are low-dimensional, spanning fewer than 5 dimensions:
+As demonstrated in the paper, the codebook matrices are low-dimensional, spanning only a fewer dimensions:
 
 <p align="center">
     <img src="assets/variance_ratio.png?raw=true" alt="Explained Variance Ratio">

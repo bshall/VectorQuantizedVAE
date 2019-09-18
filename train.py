@@ -240,7 +240,7 @@ def train_vqvae(args):
             bpd = elbo / np.log(2)
 
             average_logp += (logp.item() - average_logp) / i
-            average_vq_loss += (average_vq_loss.item() - average_vq_loss) / i
+            average_vq_loss += (vq_loss.item() - average_vq_loss) / i
             average_elbo += (elbo.item() - average_elbo) / i
             average_bpd += (bpd.item() - average_bpd) / i
             average_perplexity += (perplexity.item() - average_perplexity) / i
