@@ -80,7 +80,12 @@ class VQEmbeddingGSSoft(nn.Module):
         distances = distances.view(N, B, H, W, M)
 
         dist = RelaxedOneHotCategorical(0.5, logits=-distances)
-        samples = dist.rsample().view(N, -1, M)
+        if self.training:
+            samples = dist.rsample().view(N, -1, M)
+        else:
+            samples = torch.argmax(dist.probs, dim=-1)
+            samples = F.one_hot(samples, M).float()
+            samples = samples.view(N, -1, M)
 
         quantized = torch.bmm(samples, self.embedding)
         quantized = quantized.view_as(x)
@@ -111,9 +116,9 @@ class Residual(nn.Module):
         return x + self.block(x)
 
 
-class VQVAE(nn.Module):
-    def __init__(self, channels, latent_dim, num_embeddings, embedding_dim):
-        super(VQVAE, self).__init__()
+class Encoder(nn.Module):
+    def __init__(self, channels, latent_dim, embedding_dim):
+        super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(3, channels, 4, 2, 1, bias=False),
             nn.BatchNorm2d(channels),
@@ -125,9 +130,13 @@ class VQVAE(nn.Module):
             nn.Conv2d(channels, latent_dim * embedding_dim, 1)
         )
 
-        # self.codebook = VQEmbeddingEMA(latent_dim, num_embeddings, embedding_dim)
-        self.codebook = VQEmbeddingGSSoft(latent_dim, num_embeddings, embedding_dim)
+    def forward(self, x):
+        return self.encoder(x)
 
+
+class Decoder(nn.Module):
+    def __init__(self, channels, latent_dim, embedding_dim):
+        super(Decoder, self).__init__()
         self.decoder = nn.Sequential(
             nn.Conv2d(latent_dim * embedding_dim, channels, 1, bias=False),
             nn.BatchNorm2d(channels),
@@ -143,10 +152,36 @@ class VQVAE(nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        x, KL, perplexity = self.codebook(x)
         x = self.decoder(x)
         B, _, H, W = x.size()
         x = x.view(B, 3, 256, H, W).permute(0, 1, 3, 4, 2)
         dist = Categorical(logits=x)
+        return dist
+
+
+class VQVAE(nn.Module):
+    def __init__(self, channels, latent_dim, num_embeddings, embedding_dim):
+        super(VQVAE, self).__init__()
+        self.encoder = Encoder(channels, latent_dim, embedding_dim)
+        self.codebook = VQEmbeddingEMA(latent_dim, num_embeddings, embedding_dim)
+        self.decoder = Decoder(channels, latent_dim, embedding_dim)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x, loss, perplexity = self.codebook(x)
+        dist = self.decoder(x)
+        return dist, loss, perplexity
+
+
+class GSSOFT(nn.Module):
+    def __init__(self, channels, latent_dim, num_embeddings, embedding_dim):
+        super(GSSOFT, self).__init__()
+        self.encoder = Encoder(channels, latent_dim, embedding_dim)
+        self.codebook = VQEmbeddingGSSoft(latent_dim, num_embeddings, embedding_dim)
+        self.decoder = Decoder(channels, latent_dim, embedding_dim)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x, KL, perplexity = self.codebook(x)
+        dist = self.decoder(x)
         return dist, KL, perplexity
