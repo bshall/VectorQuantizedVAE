@@ -7,7 +7,9 @@ run the following command:
 ```
 python train.py --model=VQVAE --latent-dim=8 --num-embeddings=128
 ``` 
-To train the `GS-Soft` model use `--model=GSSOFT`.
+To train the `GS-Soft` model use `--model=GSSOFT`. 
+Pretrained weights for the `VQVAE` and `GS-Soft` models can be found 
+[here](https://github.com/bshall/VectorQuantizedVAE/releases/tag/v0.1).
 
 <p align="center">
     <img src="assets/reconstructions.png?raw=true" alt="VQVAE Reconstructions">
