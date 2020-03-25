@@ -23,6 +23,10 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir):
     print("Saved checkpoint: {}".format(checkpoint_path))
 
 
+def shift(x):
+    return x - 0.5
+
+
 def train_gssoft(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -48,17 +52,15 @@ def train_gssoft(args):
     else:
         global_step = 0
 
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Lambda(shift)
+    ])
     training_dataset = datasets.CIFAR10("./CIFAR10", train=True, download=True,
-                                        transform=transforms.Compose([
-                                            transforms.ToTensor(),
-                                            lambda x: x - 0.5
-                                        ]))
+                                        transform=transform)
 
     test_dataset = datasets.CIFAR10("./CIFAR10", train=False, download=True,
-                                    transform=transforms.Compose([
-                                        transforms.ToTensor(),
-                                        lambda x: x - 0.5
-                                    ]))
+                                    transform=transform)
 
     training_dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True,
                                      num_workers=args.num_workers, pin_memory=True)
@@ -165,17 +167,15 @@ def train_vqvae(args):
     else:
         global_step = 0
 
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Lambda(shift)
+    ])
     training_dataset = datasets.CIFAR10("./CIFAR10", train=True, download=True,
-                                        transform=transforms.Compose([
-                                            transforms.ToTensor(),
-                                            lambda x: x - 0.5
-                                        ]))
+                                        transform=transform)
 
     test_dataset = datasets.CIFAR10("./CIFAR10", train=False, download=True,
-                                    transform=transforms.Compose([
-                                        transforms.ToTensor(),
-                                        lambda x: x - 0.5
-                                    ]))
+                                    transform=transform)
 
     training_dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True,
                                      num_workers=args.num_workers, pin_memory=True)
